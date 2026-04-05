@@ -44,7 +44,7 @@ body {background-color:#0b0f14; color:#e6e6e6;}
 
 # ---------- HEADER ----------
 st.title("📊 Private Equity Valuation Terminal")
-st.caption("DCF + LBO + Sensitivity | sample project")
+st.caption("DCF + LBO + Sensitivity | Bloomberg Style")
 
 # ---------- SIDEBAR ----------
 st.sidebar.header("⚙️ Inputs")
