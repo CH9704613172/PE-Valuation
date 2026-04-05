@@ -4,7 +4,7 @@ import numpy as np
 
 st.set_page_config(layout="wide", page_title="PE Valuation Terminal")
 
-# ---------- CUSTOM IRR FUNCTION (NO DEPENDENCY) ----------
+# ---------- CUSTOM IRR FUNCTION ----------
 def compute_irr(cashflows, guess=0.1):
     rate = guess
     for _ in range(1000):
@@ -130,10 +130,15 @@ with right:
     st.write(f"**Debt Remaining:** ${debt_balance:,.0f}")
 
     st.subheader("📉 Cash Flows")
+
+    # ✅ FIXED LENGTH ISSUE
+    cf_years = list(range(len(cash_flows)))
+
     cf_df = pd.DataFrame({
-        "Year": list(range(0, years + 1)),
+        "Year": cf_years,
         "Cash Flow": cash_flows
     })
+
     st.bar_chart(cf_df.set_index("Year"))
 
 st.success("✅ App Running Successfully")
