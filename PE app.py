@@ -1,9 +1,17 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import numpy_financial as npf
 
 st.set_page_config(layout="wide", page_title="PE Valuation Terminal")
+
+# ---------- CUSTOM IRR FUNCTION (NO DEPENDENCY) ----------
+def compute_irr(cashflows, guess=0.1):
+    rate = guess
+    for _ in range(1000):
+        npv = sum(cf / (1 + rate) ** i for i, cf in enumerate(cashflows))
+        d_npv = sum(-i * cf / (1 + rate) ** (i + 1) for i, cf in enumerate(cashflows))
+        rate -= npv / d_npv
+    return rate
 
 # ---------- CUSTOM CSS ----------
 st.markdown("""
@@ -94,7 +102,7 @@ exit_equity = exit_ev - debt_balance
 cash_flows.append(exit_equity)
 
 # ---------- RETURNS ----------
-irr = npf.irr(cash_flows)
+irr = compute_irr(cash_flows)
 moic = exit_equity / equity
 
 # ---------- KPI ----------
@@ -128,4 +136,4 @@ with right:
     })
     st.bar_chart(cf_df.set_index("Year"))
 
-st.success("✅ Bloomberg-style PE Dashboard Live")
+st.success("✅ App Running Successfully")
