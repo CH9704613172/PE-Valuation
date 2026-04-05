@@ -4,7 +4,7 @@ import numpy as np
 
 st.set_page_config(layout="wide", page_title="PE Valuation Terminal")
 
-# ---------- IRR FUNCTION ----------
+# ---------- CUSTOM IRR FUNCTION ----------
 def compute_irr(cashflows, guess=0.1):
     rate = guess
     for _ in range(1000):
@@ -13,47 +13,34 @@ def compute_irr(cashflows, guess=0.1):
         rate -= npv / d_npv
     return rate
 
-# ---------- SENSITIVITY FUNCTION ----------
-def calculate_ev_sensitivity(base_fcf, wacc_range, g_range, years):
-    heatmap = []
-
-    for w in wacc_range:
-        row = []
-        for g in g_range:
-            if w <= g:
-                row.append(np.nan)
-            else:
-                tv = (base_fcf * (1 + g)) / (w - g)
-                pv_tv = tv / ((1 + w) ** years)
-                row.append(pv_tv)
-        heatmap.append(row)
-
-    return pd.DataFrame(
-        heatmap,
-        index=[f"{round(w*100,1)}%" for w in wacc_range],
-        columns=[f"{round(g*100,1)}%" for g in g_range]
-    )
-
-# ---------- UI STYLE ----------
+# ---------- CUSTOM CSS ----------
 st.markdown("""
-<style>
-body {background-color:#0b0f14; color:#e6e6e6;}
-.stMetric {background:#111827; padding:15px; border-radius:10px;}
-</style>
+    <style>
+    body {
+        background-color: #0b0f14;
+        color: #e6e6e6;
+    }
+    .stMetric {
+        background-color: #111827;
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid #1f2937;
+    }
+    </style>
 """, unsafe_allow_html=True)
 
 # ---------- HEADER ----------
 st.title("📊 Private Equity Valuation Terminal")
-st.caption("DCF + LBO + Sensitivity | Bloomberg Style")
+st.caption("DCF + LBO | Bloomberg Style Dashboard")
 
 # ---------- SIDEBAR ----------
-st.sidebar.header("⚙️ Inputs")
+st.sidebar.header("⚙️ Model Inputs")
 
 revenue = st.sidebar.number_input("Initial Revenue", value=1000.0)
 growth = st.sidebar.slider("Growth %", 0.0, 0.30, 0.10)
 ebitda_margin = st.sidebar.slider("EBITDA %", 0.0, 0.50, 0.25)
 tax_rate = st.sidebar.slider("Tax %", 0.0, 0.40, 0.25)
-wacc = st.sidebar.slider("WACC %", 0.01, 0.20, 0.10)
+wacc = st.sidebar.slider("WACC %", 0.0, 0.20, 0.10)
 terminal_growth = st.sidebar.slider("Terminal Growth", 0.0, 0.05, 0.03)
 
 capex_pct = st.sidebar.slider("Capex %", 0.0, 0.20, 0.05)
@@ -66,7 +53,7 @@ interest_rate = st.sidebar.slider("Interest %", 0.0, 0.15, 0.08)
 
 years = st.sidebar.slider("Projection Years", 3, 10, 5)
 
-# ---------- PROJECTIONS ----------
+# ---------- CALCULATIONS ----------
 data = []
 rev = revenue
 
@@ -78,6 +65,7 @@ for i in range(1, years + 1):
 
     ebit = ebitda
     tax = ebit * tax_rate
+
     fcf = ebit - tax - capex - wc
     pv = fcf / ((1 + wacc) ** i)
 
@@ -88,6 +76,7 @@ df = pd.DataFrame(data, columns=["Year", "Revenue", "EBITDA", "FCF", "PV"])
 # ---------- TERMINAL VALUE ----------
 terminal_value = (df["FCF"].iloc[-1] * (1 + terminal_growth)) / (wacc - terminal_growth)
 pv_terminal = terminal_value / ((1 + wacc) ** years)
+
 enterprise_value = df["PV"].sum() + pv_terminal
 
 # ---------- LBO ----------
@@ -105,6 +94,7 @@ for i in range(years):
     repayment = df["FCF"].iloc[i] - interest
     debt_balance -= max(repayment, 0)
 
+# ---------- EXIT ----------
 exit_ebitda = df["EBITDA"].iloc[-1]
 exit_ev = exit_ebitda * exit_multiple
 exit_equity = exit_ev - debt_balance
@@ -116,47 +106,39 @@ irr = compute_irr(cash_flows)
 moic = exit_equity / equity
 
 # ---------- KPI ----------
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Enterprise Value", f"${enterprise_value:,.0f}")
-c2.metric("Entry EV", f"${entry_ev:,.0f}")
-c3.metric("IRR", f"{irr*100:.2f}%")
-c4.metric("MOIC", f"{moic:.2f}x")
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric("Enterprise Value", f"${enterprise_value:,.0f}")
+col2.metric("Entry EV", f"${entry_ev:,.0f}")
+col3.metric("IRR", f"{irr*100:.2f}%")
+col4.metric("MOIC", f"{moic:.2f}x")
 
 # ---------- LAYOUT ----------
 left, right = st.columns([2, 1])
 
 with left:
-    st.subheader("📈 Financials")
+    st.subheader("📈 Financial Performance")
     st.line_chart(df.set_index("Year")[["Revenue", "EBITDA", "FCF"]])
+
+    st.subheader("📊 Detailed Projections")
     st.dataframe(df, use_container_width=True)
 
 with right:
     st.subheader("💰 Deal Summary")
-    st.write(f"Entry Equity: ${equity:,.0f}")
-    st.write(f"Exit Equity: ${exit_equity:,.0f}")
-    st.write(f"Debt Remaining: ${debt_balance:,.0f}")
+    st.write(f"**Entry Equity:** ${equity:,.0f}")
+    st.write(f"**Exit Equity:** ${exit_equity:,.0f}")
+    st.write(f"**Debt Remaining:** ${debt_balance:,.0f}")
 
     st.subheader("📉 Cash Flows")
+
+    # ✅ FIXED LENGTH ISSUE
+    cf_years = list(range(len(cash_flows)))
+
     cf_df = pd.DataFrame({
-        "Year": list(range(len(cash_flows))),
+        "Year": cf_years,
         "Cash Flow": cash_flows
     })
+
     st.bar_chart(cf_df.set_index("Year"))
-
-# ---------- SENSITIVITY ----------
-st.subheader("🔥 Sensitivity Analysis (WACC vs Growth)")
-
-wacc_range = np.linspace(wacc - 0.02, wacc + 0.02, 5)
-g_range = np.linspace(terminal_growth - 0.01, terminal_growth + 0.01, 5)
-
-base_fcf = df["FCF"].iloc[-1]
-heatmap_df = calculate_ev_sensitivity(base_fcf, wacc_range, g_range, years)
-
-heatmap_df = heatmap_df / 1e6  # convert to millions
-
-st.dataframe(
-    heatmap_df.style.background_gradient(cmap="Blues"),
-    use_container_width=True
-)
 
 st.success("✅ App Running Successfully")
