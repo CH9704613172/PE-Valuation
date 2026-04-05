@@ -31,7 +31,7 @@ st.markdown("""
 
 # ---------- HEADER ----------
 st.title("📊 Private Equity Valuation Terminal")
-st.caption("DCF + LBO | Bloomberg Style Dashboard")
+st.caption("DCF + LBO |Educational project Dashboard")
 
 # ---------- SIDEBAR ----------
 st.sidebar.header("⚙️ Model Inputs")
